@@ -1,6 +1,7 @@
 import subprocess
 import sys
 
+
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
@@ -18,7 +19,32 @@ from ultralytics import YOLO
 import torch
 import os
 import threading
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 global button
+smtp_server=""
+port=""
+user=""
+pwd=""
+to=""
+sujet="Training model : "
+message="Finished training for "
+def send_mail(smtp_server, port, user, pwd, to, sujet, message):
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = user
+        msg['To'] = to
+        msg['Subject'] = sujet
+        msg.attach(MIMEText(message, 'plain'))
+        serveur = smtplib.SMTP(smtp_server, port)
+        #serveur.starttls() pour sécurité TLS
+        serveur.login(user, pwd)
+        serveur.send_message(msg)
+        serveur.quit()
+        print("E-mail successfully sent!")
+    except Exception as e:
+        print(f"Error sending e-mail : {e}")
 def get_available_models():
     model_paths = []
     models_dir = './models'
@@ -33,7 +59,14 @@ def get_available_models():
     ]
     
     model_paths.extend(base_models)
-    
+
+    if os.path.exists(models_dir):
+        for file in os.listdir(models_dir):
+            full_path = os.path.join(models_dir, file)
+            if os.path.isfile(full_path) and file.endswith('.pt'):
+                display_name = f"{file} ({full_path})"
+                model_paths.append((display_name, full_path))
+
     for root, dirs, files in os.walk(models_dir):
         if 'weights' in root:
             for file in files:
@@ -76,6 +109,7 @@ def start_training_thread():
     )
     update_training_status("Training completed!")
     button.config(state="normal")
+    send_mail(smtp_server,port,user,pwd,to,sujet,message+modelName.get())
 
 def start_training():
     thread = threading.Thread(target=start_training_thread)
